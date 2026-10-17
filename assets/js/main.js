@@ -1,12 +1,13 @@
 /*!
- * Musterbau Haustechnik GmbH – Demo-Website eines fiktiven Betriebs
+ * Tschudnow Profi Service – Entrümpelung, Haushaltsauflösung & Bodenleger
  * Minimales Vanilla-JavaScript ohne Abhängigkeiten:
  *   1. Aktuelles Jahr im Footer
  *   2. Header-Schatten beim Scrollen
  *   3. Mobile Navigation (Hamburger)
  *   4. Aktiven Abschnitt in der Navigation hervorheben
  *   5. Anliegen im Formular vorauswählen
- *   6. Clientseitige Formular-Validierung (Demo – es wird nichts versendet)
+ *   6. Clientseitige Formular-Validierung + vorausgefüllte E-Mail (mailto:)
+ *      – es gibt kein Backend, über die Website wird nichts übertragen
  * Alle Funktionen prüfen, ob die benötigten Elemente existieren,
  * und laufen daher auf jeder Unterseite fehlerfrei.
  */
@@ -163,13 +164,14 @@
     });
   }
 
-  /* 6. Formular-Validierung (Demo) ---------------------------------------- */
+  /* 6. Formular-Validierung + mailto ------------------------------------- */
   var form = doc.getElementById('kontaktformular');
 
   if (form) {
     form.setAttribute('novalidate', '');
 
     var statusEl = doc.getElementById('formular-status');
+    var recipient = form.getAttribute('data-mailto') || '';
     var fields = Array.prototype.filter.call(
       form.querySelectorAll('input, select, textarea'),
       function (field) {
@@ -221,7 +223,8 @@
       return !message;
     };
 
-    var setStatus = function (type, title, text) {
+    // Inhalt des Status-Elements: Titel, Text und optional ein Link
+    var setStatus = function (type, title, text, link) {
       if (!statusEl) return;
       statusEl.className = 'form-status' + (type ? ' form-status--' + type : '');
       statusEl.textContent = '';
@@ -230,6 +233,51 @@
       strong.textContent = title;
       statusEl.appendChild(strong);
       if (text) statusEl.appendChild(doc.createTextNode(text));
+      if (link) {
+        statusEl.appendChild(doc.createTextNode(' '));
+        var a = doc.createElement('a');
+        a.href = link.href;
+        a.textContent = link.text;
+        statusEl.appendChild(a);
+      }
+    };
+
+    var valueOf = function (name) {
+      var field = form.elements[name];
+      return field ? field.value.trim() : '';
+    };
+
+    // Betreff und Text der E-Mail aus den Formularangaben zusammensetzen
+    var buildMailto = function () {
+      var topicField = form.elements.anliegen;
+      var topic = topicField && topicField.selectedIndex > 0
+        ? topicField.options[topicField.selectedIndex].text
+        : 'Anfrage';
+      var place = valueOf('ort');
+      var name = valueOf('name');
+
+      var subject = 'Anfrage über die Website: ' + topic + (place ? ' in ' + place : '');
+      var lines = [
+        'Guten Tag Herr Tschudnow,',
+        '',
+        'ich interessiere mich für: ' + topic,
+        '',
+        'Name: ' + name,
+        'E-Mail: ' + valueOf('email'),
+        'Telefon: ' + (valueOf('telefon') || '–'),
+        'Ort / PLZ: ' + place,
+        'Wunschtermin: ' + (valueOf('termin') || '–'),
+        '',
+        'Nachricht:',
+        valueOf('nachricht'),
+        '',
+        'Viele Grüße',
+        name
+      ];
+
+      return 'mailto:' + recipient +
+        '?subject=' + encodeURIComponent(subject) +
+        '&body=' + encodeURIComponent(lines.join('\r\n'));
     };
 
     fields.forEach(function (field) {
@@ -265,18 +313,19 @@
         return;
       }
 
+      var mailto = buildMailto();
+
       setStatus(
         'success',
-        'Vielen Dank – Ihre Eingaben sind vollständig!',
-        'Hinweis: Dies ist eine Demo-Website eines fiktiven Betriebs. ' +
-          'Ihre Nachricht wurde nicht versendet und nirgendwo gespeichert.'
+        'Vielen Dank! Ihr E-Mail-Programm wird geöffnet.',
+        'Bitte prüfen Sie die vorbereitete Nachricht und senden Sie sie dort ab. ' +
+          'Falls sich kein E-Mail-Programm öffnet, erreichen Sie uns telefonisch unter ' +
+          '0176 312 245 60 oder per E-Mail an ' + recipient + '.',
+        { href: mailto, text: 'E-Mail erneut öffnen' }
       );
 
-      form.reset();
-      fields.forEach(function (field) {
-        field.removeAttribute('data-dirty');
-        showError(field, '');
-      });
+      // Formulardaten bleiben erhalten, falls das E-Mail-Programm nicht startet
+      win.location.href = mailto;
     });
   }
 })();
