@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Musterbau Haustechnik GmbH</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#11596b"/>
+      <stop offset="1" stop-color="#072a33"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0a574"/>
+      <stop offset="1" stop-color="#c8692c"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <path d="M14 31 L32 16 L50 31" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M19 28 V48 a2 2 0 0 0 2 2 H43 a2 2 0 0 0 2 -2 V28" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 27 C29 31.5 26 35 26 39 a6 6 0 0 0 12 0 C38 35 35 31.5 32 27 Z" fill="url(#drop)"/>
+</svg>
