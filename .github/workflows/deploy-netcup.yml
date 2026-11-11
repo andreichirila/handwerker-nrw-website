@@ -82,7 +82,7 @@ jobs:
       - name: Check connection
         run: |
           set -euo pipefail
-          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; echo "--- Document Root:"; ls -la ~/'"${NETCUP_PATH:-httpdocs/}"' 2>&1 | head -40; command -v rsync'
+          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; for d in ~/*/; do case "$d" in */bin/|*/lib/|*/lib64/|*/usr/|*/dev/|*/etc/|*/var/|*/tmp/) continue;; esac; echo "--- $d"; ls -la "$d" 2>&1 | head -20; done; echo "--- Document Root:"; ls -la ~/'"${NETCUP_PATH:-httpdocs/}"' 2>&1 | head -40; command -v rsync' || true
 
       - name: Deploy (rsync)
         if: env.MODE == 'deploy'
