@@ -7,7 +7,8 @@ name: Deploy to netcup
 #   NETCUP_SSH_KEY       privater Deploy-Schlüssel (ed25519, ohne Passphrase)
 #   NETCUP_HOST          z. B. hosting254728.ae990.netcup.net
 #   NETCUP_USER          z. B. hosting254728
-#   NETCUP_PATH          Document Root, z. B. httpdocs/ (relativ zum Home-Verzeichnis)
+#   NETCUP_PATH          Document Root(s) relativ zum Home, durch Leerzeichen getrennt,
+#                        z. B. tschudnow-handwerk.de/httpdocs/
 #   NETCUP_KNOWN_HOSTS   Ausgabe von ssh-keyscan für NETCUP_HOST
 # Repository-Variable:
 #   NETCUP_DEPLOY_ENABLED = true   aktiviert das automatische Deployment bei Push auf main
@@ -82,28 +83,37 @@ jobs:
       - name: Check connection
         run: |
           set -euo pipefail
-          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; for d in ~/*/; do case "$d" in */bin/|*/lib/|*/lib64/|*/usr/|*/dev/|*/etc/|*/var/|*/tmp/) continue;; esac; echo "--- $d"; ls -la "$d" 2>&1 | head -20; done; echo "--- Document Root:"; ls -la ~/'"${NETCUP_PATH:-httpdocs/}"' 2>&1 | head -40; command -v rsync' || true
+          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; command -v rsync'
+          for p in $NETCUP_PATH; do
+            echo "--- Document Root: $p"
+            ssh netcup "ls -la ~/${p%/}/ | head -40" || { echo "::error::Document Root $p nicht gefunden"; exit 1; }
+          done
 
       - name: Deploy (rsync)
         if: env.MODE == 'deploy'
         run: |
           set -euo pipefail
           test -n "$NETCUP_PATH" || { echo "::error::NETCUP_PATH fehlt"; exit 1; }
-          case "$NETCUP_PATH" in /*|*..*) echo "::error::NETCUP_PATH muss relativ zum Home-Verzeichnis sein"; exit 1;; esac
-          # Nur die Dateien der Website übertragen. --delete entfernt nur veraltete Website-Dateien
-          # innerhalb des Document Roots; alles andere (z. B. .well-known für Let's Encrypt) bleibt geschützt.
-          rsync -az --delete --itemize-changes \
-            --filter='P .well-known/' \
-            --include='/index.html' \
-            --include='/impressum.html' \
-            --include='/datenschutz.html' \
-            --include='/404.html' \
-            --include='/.htaccess' \
-            --include='/robots.txt' \
-            --include='/sitemap.xml' \
-            --include='/assets/***' \
-            --exclude='/images/README.md' \
-            --exclude='.gitkeep' \
-            --include='/images/***' \
-            --exclude='*' \
-            ./ "netcup:${NETCUP_PATH%/}/"
+          # NETCUP_PATH darf mehrere Document Roots enthalten (durch Leerzeichen getrennt),
+          # z. B. die Domain und die vorläufige netcup-Adresse.
+          for p in $NETCUP_PATH; do
+            case "$p" in /*|*..*) echo "::error::NETCUP_PATH muss relativ zum Home-Verzeichnis sein"; exit 1;; esac
+            echo "=== Deploy nach $p"
+            # Nur die Dateien der Website übertragen. --delete entfernt nur veraltete Website-Dateien
+            # innerhalb des Document Roots; alles andere (z. B. .well-known für Let's Encrypt) bleibt geschützt.
+            rsync -az --delete --itemize-changes \
+              --filter='P .well-known/' \
+              --include='/index.html' \
+              --include='/impressum.html' \
+              --include='/datenschutz.html' \
+              --include='/404.html' \
+              --include='/.htaccess' \
+              --include='/robots.txt' \
+              --include='/sitemap.xml' \
+              --include='/assets/***' \
+              --exclude='/images/README.md' \
+              --exclude='.gitkeep' \
+              --include='/images/***' \
+              --exclude='*' \
+              ./ "netcup:${p%/}/"
+          done
