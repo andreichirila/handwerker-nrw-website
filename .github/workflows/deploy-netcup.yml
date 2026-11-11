@@ -83,7 +83,7 @@ jobs:
       - name: Check connection
         run: |
           set -euo pipefail
-          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; command -v rsync'
+          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; for t in rsync tar find sha256sum md5sum; do printf "%s: " $t; command -v $t || echo fehlt; done'
           for p in $NETCUP_PATH; do
             echo "--- Document Root: $p"
             ssh netcup "ls -la ~/${p%/}/ | head -40" || { echo "::error::Document Root $p nicht gefunden"; exit 1; }
