@@ -22,7 +22,7 @@ Sprockhövel, Mettmann, Essen, Düsseldorf).
 | Über uns | Regionaler Dienstleister aus Wuppertal, persönlicher Ansprechpartner |
 | Referenzen | Vorbereitete Galerie mit „Fotos folgen“-Platzhaltern inkl. Vorher/Nachher-Paar |
 | Einzugsgebiet | Selbst gezeichnete SVG-Karte rund um Wuppertal + Städte-Liste |
-| Kontakt | Formular (öffnet das E-Mail-Programm), Telefon, E-Mail, WhatsApp, Ansprechpartner |
+| Kontakt | Formular (Versand über `kontakt.php`), Telefon, E-Mail, WhatsApp, Ansprechpartner |
 
 Bewusst **nicht** enthalten (weil nicht belegt): Jahreszahlen/Erfahrung, Teamgrößen,
 Kundenstimmen, Bewertungen, Preise, Zertifikate, Versicherungsangaben, Öffnungszeiten,
@@ -35,10 +35,11 @@ Straßenadresse.
 - Hervorhebung des aktiven Abschnitts beim Scrollen (IntersectionObserver)
 - Smooth Scrolling mit `scroll-margin-top`, respektiert `prefers-reduced-motion`
 - Klick auf „Angebot anfragen“ in einer Leistungskarte wählt das passende Anliegen im Formular vor
-- **Kontaktformular ohne Backend:** clientseitige Validierung, danach öffnet sich das
-  E-Mail-Programm der Besucherin bzw. des Besuchers mit vorausgefülltem Betreff und Text
-  an `Eugen.Tschudnow@outlook.de` (`mailto:` mit `encodeURIComponent`). Über die Website
-  selbst wird nichts übertragen oder gespeichert.
+- **Kontaktformular mit `kontakt.php`:** clientseitige und serverseitige Validierung,
+  Honeypot, zeitgebundenes Token, Rate-Limit; die Anfrage wird per E-Mail an
+  `eugen.tschudnow@outlook.de` weitergeleitet (Reply-To = Absender). Konfiguration
+  (`../kontakt-config.php`) und Laufzeitdaten (`../kontakt-data/`) liegen außerhalb des
+  Webroots. Ersatzweg bei Fehlern: vorausgefüllte E-Mail (`mailto:`).
 - Barrierearm: Skip-Link, sichtbare Fokus-Stile, Labels, Live-Region für Formularmeldungen,
   Kontraste nach WCAG AA, dekorative SVGs mit `aria-hidden`, Karte mit `title`/`desc`
 - SEO: `title`, `meta description`, Canonical, Open Graph/Twitter, `theme-color`, Favicon,

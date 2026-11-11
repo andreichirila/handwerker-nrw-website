@@ -89,6 +89,10 @@ jobs:
             ssh netcup "ls -la ~/${p%/}/ | head -40" || { echo "::error::Document Root $p nicht gefunden"; exit 1; }
           done
 
+      - name: PHP syntax check
+        if: env.MODE == 'deploy'
+        run: php -l kontakt.php
+
       - name: Build site bundle
         if: env.MODE == 'deploy'
         run: |
@@ -96,6 +100,7 @@ jobs:
           # Nur die Dateien der Website in _site/ sammeln (lokal auf dem Runner).
           rsync -a \
             --include='/index.html' \
+            --include='/kontakt.php' \
             --include='/impressum.html' \
             --include='/datenschutz.html' \
             --include='/404.html' \

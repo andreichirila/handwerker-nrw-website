@@ -6,8 +6,8 @@
  *   3. Mobile Navigation (Hamburger)
  *   4. Aktiven Abschnitt in der Navigation hervorheben
  *   5. Anliegen im Formular vorauswählen
- *   6. Clientseitige Formular-Validierung + vorausgefüllte E-Mail (mailto:)
- *      – es gibt kein Backend, über die Website wird nichts übertragen
+ *   6. Clientseitige Formular-Validierung + Versand über kontakt.php (Ersatzweg: mailto:)
+ *      – die Anfrage wird per E-Mail weitergeleitet und nicht auf der Website gespeichert
  * Alle Funktionen prüfen, ob die benötigten Elemente existieren,
  * und laufen daher auf jeder Unterseite fehlerfrei.
  */
@@ -164,7 +164,7 @@
     });
   }
 
-  /* 6. Formular-Validierung + mailto ------------------------------------- */
+  /* 6. Formular-Validierung + Versand ------------------------------------ */
   var form = doc.getElementById('kontaktformular');
 
   if (form) {
@@ -175,7 +175,7 @@
     var fields = Array.prototype.filter.call(
       form.querySelectorAll('input, select, textarea'),
       function (field) {
-        return field.id && field.type !== 'hidden' && field.type !== 'submit';
+        return field.id && field.type !== 'hidden' && field.type !== 'submit' && field.name !== 'website';
       }
     );
 
@@ -247,7 +247,7 @@
       return field ? field.value.trim() : '';
     };
 
-    // Betreff und Text der E-Mail aus den Formularangaben zusammensetzen
+    // Ersatzweg: vorausgefüllte E-Mail, falls der Versand über die Website nicht möglich ist
     var buildMailto = function () {
       var topicField = form.elements.anliegen;
       var topic = topicField && topicField.selectedIndex > 0
@@ -294,6 +294,34 @@
       });
     });
 
+    var tokenField = form.elements.token;
+    var submitBtn = form.querySelector('button[type="submit"]');
+    var endpoint = form.getAttribute('action');
+
+    // Zeitgebundenes Formular-Token vom Server holen (Spam-Schutz)
+    var loadToken = function () {
+      if (!win.fetch || !tokenField) return;
+      win.fetch(endpoint + '?token=1', { credentials: 'same-origin', cache: 'no-store' })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) { if (data && data.token) tokenField.value = data.token; })
+        .catch(function () {});
+    };
+    loadToken();
+
+    var fallbackLink = function () {
+      return { href: buildMailto(), text: 'Stattdessen per E-Mail senden' };
+    };
+
+    // Statusanzeige nach Rückleitung ohne JavaScript-Versand (kontakt.php?…)
+    var params = /[?&]anfrage=(ok|fehler)/.exec(win.location.search);
+    if (params) {
+      if (params[1] === 'ok') {
+        setStatus('success', 'Vielen Dank für Ihre Anfrage!', ' Wir melden uns schnellstmöglich bei Ihnen.');
+      } else {
+        setStatus('error', 'Die Anfrage konnte nicht gesendet werden.', ' Bitte versuchen Sie es erneut oder rufen Sie uns an: 0176 312 245 60.');
+      }
+    }
+
     form.addEventListener('submit', function (event) {
       event.preventDefault();
 
@@ -313,19 +341,50 @@
         return;
       }
 
-      var mailto = buildMailto();
+      if (!win.fetch || !win.FormData) {
+        form.submit();
+        return;
+      }
 
-      setStatus(
-        'success',
-        'Vielen Dank! Ihr E-Mail-Programm wird geöffnet.',
-        'Bitte prüfen Sie die vorbereitete Nachricht und senden Sie sie dort ab. ' +
-          'Falls sich kein E-Mail-Programm öffnet, erreichen Sie uns telefonisch unter ' +
-          '0176 312 245 60 oder per E-Mail an ' + recipient + '.',
-        { href: mailto, text: 'E-Mail erneut öffnen' }
-      );
+      if (submitBtn) submitBtn.disabled = true;
+      setStatus('', 'Ihre Anfrage wird gesendet …');
 
-      // Formulardaten bleiben erhalten, falls das E-Mail-Programm nicht startet
-      win.location.href = mailto;
+      win.fetch(endpoint, {
+        method: 'POST',
+        body: new win.FormData(form),
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin'
+      })
+        .then(function (res) {
+          return res.json().catch(function () { return { status: 'error' }; });
+        })
+        .then(function (data) {
+          if (data && data.status === 'ok') {
+            form.reset();
+            fields.forEach(function (field) { field.removeAttribute('data-dirty'); });
+            setStatus('success', 'Vielen Dank für Ihre Anfrage!', ' Wir melden uns schnellstmöglich bei Ihnen.');
+            loadToken();
+          } else {
+            setStatus(
+              'error',
+              'Die Anfrage konnte nicht gesendet werden.',
+              ' ' + ((data && data.message) || 'Bitte versuchen Sie es später erneut oder rufen Sie uns an: 0176 312 245 60.'),
+              fallbackLink()
+            );
+            loadToken();
+          }
+        })
+        .catch(function () {
+          setStatus(
+            'error',
+            'Die Anfrage konnte nicht gesendet werden.',
+            ' Bitte prüfen Sie Ihre Internetverbindung oder rufen Sie uns an: 0176 312 245 60.',
+            fallbackLink()
+          );
+        })
+        .then(function () {
+          if (submitBtn) submitBtn.disabled = false;
+        });
     });
   }
 })();

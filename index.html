@@ -706,10 +706,15 @@
             <h3>Ihre Anfrage</h3>
             <div class="notice notice--info">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
-              <p><strong>So funktioniert das Formular:</strong> Nach dem Absenden öffnet sich Ihr E-Mail-Programm mit einer vorausgefüllten Nachricht an uns, die Sie prüfen und dann selbst abschicken. Über die Website werden dabei keine Daten übertragen oder gespeichert.</p>
+              <p><strong>So funktioniert das Formular:</strong> Ihre Anfrage wird verschlüsselt an uns übermittelt und direkt per E-Mail an Eugen Tschudnow weitergeleitet. Auf der Website selbst werden Ihre Angaben nicht gespeichert. Details finden Sie in der <a href="datenschutz.html#kontaktformular">Datenschutzerklärung</a>.</p>
             </div>
 
-            <form id="kontaktformular" class="form" action="#kontakt" method="post" data-mailto="Eugen.Tschudnow@outlook.de">
+            <form id="kontaktformular" class="form" action="kontakt.php" method="post" accept-charset="UTF-8" data-mailto="Eugen.Tschudnow@outlook.de">
+              <input type="hidden" name="token" value="">
+              <div class="visually-hidden" aria-hidden="true">
+                <label for="f-website">Website (bitte leer lassen)</label>
+                <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
+              </div>
               <p class="form-required-note">Felder mit <span class="req">*</span> sind Pflichtfelder.</p>
 
               <div class="form-grid form-grid--2">
@@ -772,14 +777,14 @@
               </div>
 
               <button class="btn btn--primary btn--lg btn--block" type="submit">
-                Anfrage per E-Mail senden
+                Anfrage senden
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5 20 4"/></svg>
               </button>
 
               <p id="formular-status" class="form-status" role="status" aria-live="polite"></p>
             </form>
             <noscript>
-              <p class="form-required-note">JavaScript ist deaktiviert. Bitte schreiben Sie uns direkt an <a href="mailto:Eugen.Tschudnow@outlook.de">Eugen.Tschudnow@outlook.de</a> oder rufen Sie an: <a href="tel:+4917631224560">0176 312 245 60</a>.</p>
+              <p class="form-required-note">JavaScript ist deaktiviert. Das Formular benötigt JavaScript – bitte schreiben Sie uns direkt an <a href="mailto:Eugen.Tschudnow@outlook.de">Eugen.Tschudnow@outlook.de</a> oder rufen Sie an: <a href="tel:+4917631224560">0176 312 245 60</a>.</p>
             </noscript>
           </div>
 
