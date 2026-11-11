@@ -9,13 +9,12 @@ ErrorDocument 404 /404.html
   RewriteCond %{HTTP_HOST} ^www\.tschudnow-handwerk\.de$ [NC]
   RewriteRule ^ https://tschudnow-handwerk.de%{REQUEST_URI} [R=301,L]
 
-  # HTTPS erzwingen – ERST aktivieren, wenn im netcup-Panel ein gültiges
-  # Let's-Encrypt-Zertifikat für tschudnow-handwerk.de (und www) aktiv ist.
-  # Stand der Einrichtung: noch kein gültiges Zertifikat, daher auskommentiert.
-  # RewriteCond %{HTTPS} !=on
-  # RewriteCond %{HTTP:X-Forwarded-Proto} !=https
-  # RewriteCond %{HTTP_HOST} ^tschudnow-handwerk\.de$ [NC]
-  # RewriteRule ^ https://tschudnow-handwerk.de%{REQUEST_URI} [R=301,L]
+  # HTTPS erzwingen – nur für die eigene Domain (gültiges Let's-Encrypt-Zertifikat
+  # für tschudnow-handwerk.de und www). Die vorläufige netcup-Adresse bleibt unberührt.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{HTTP_HOST} ^tschudnow-handwerk\.de$ [NC]
+  RewriteRule ^ https://tschudnow-handwerk.de%{REQUEST_URI} [R=301,L]
 </IfModule>
 
 # Repository-/Hilfsdateien nicht ausliefern
