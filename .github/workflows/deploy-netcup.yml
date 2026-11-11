@@ -1,6 +1,6 @@
 name: Deploy to netcup
 
-# Veröffentlicht die statische Seite per rsync über SSH auf das netcup Webhosting.
+# Veröffentlicht die statische Seite per SSH (tar, das Webhosting hat kein rsync) auf das netcup Webhosting.
 # GitHub Pages (Vorschau) läuft unabhängig davon weiter.
 #
 # Benötigte Repository-Secrets:
@@ -89,31 +89,51 @@ jobs:
             ssh netcup "ls -la ~/${p%/}/ | head -40" || { echo "::error::Document Root $p nicht gefunden"; exit 1; }
           done
 
-      - name: Deploy (rsync)
+      - name: Build site bundle
+        if: env.MODE == 'deploy'
+        run: |
+          set -euo pipefail
+          # Nur die Dateien der Website in _site/ sammeln (lokal auf dem Runner).
+          rsync -a \
+            --include='/index.html' \
+            --include='/impressum.html' \
+            --include='/datenschutz.html' \
+            --include='/404.html' \
+            --include='/.htaccess' \
+            --include='/robots.txt' \
+            --include='/sitemap.xml' \
+            --include='/assets/***' \
+            --exclude='/images/README.md' \
+            --exclude='.gitkeep' \
+            --include='/images/***' \
+            --exclude='*' \
+            ./ _site/
+          (cd _site && find . -type f | sed 's|^\./||' | LC_ALL=C sort > .deploy-manifest)
+          echo "Dateien im Paket: $(wc -l < _site/.deploy-manifest)"
+
+      - name: Deploy (tar over SSH)
         if: env.MODE == 'deploy'
         run: |
           set -euo pipefail
           test -n "$NETCUP_PATH" || { echo "::error::NETCUP_PATH fehlt"; exit 1; }
-          # NETCUP_PATH darf mehrere Document Roots enthalten (durch Leerzeichen getrennt),
-          # z. B. die Domain und die vorläufige netcup-Adresse.
+          # Auf dem netcup-Webhosting gibt es kein rsync. Deshalb: Paket per tar über SSH entpacken
+          # und anschließend nur die Dateien löschen, die beim letzten Deploy von uns kamen und jetzt
+          # nicht mehr Teil der Seite sind (Manifest-Vergleich). Fremde Dateien (z. B. .well-known
+          # für Let's Encrypt) werden nie angefasst.
+          # NETCUP_PATH darf mehrere Document Roots enthalten (durch Leerzeichen getrennt).
           for p in $NETCUP_PATH; do
             case "$p" in /*|*..*) echo "::error::NETCUP_PATH muss relativ zum Home-Verzeichnis sein"; exit 1;; esac
-            echo "=== Deploy nach $p"
-            # Nur die Dateien der Website übertragen. --delete entfernt nur veraltete Website-Dateien
-            # innerhalb des Document Roots; alles andere (z. B. .well-known für Let's Encrypt) bleibt geschützt.
-            rsync -az --delete --itemize-changes \
-              --filter='P .well-known/' \
-              --include='/index.html' \
-              --include='/impressum.html' \
-              --include='/datenschutz.html' \
-              --include='/404.html' \
-              --include='/.htaccess' \
-              --include='/robots.txt' \
-              --include='/sitemap.xml' \
-              --include='/assets/***' \
-              --exclude='/images/README.md' \
-              --exclude='.gitkeep' \
-              --include='/images/***' \
-              --exclude='*' \
-              ./ "netcup:${p%/}/"
+            d="${p%/}"
+            echo "=== Deploy nach $d"
+            ssh netcup "test -d ~/$d" || { echo "::error::Document Root $d nicht gefunden"; exit 1; }
+            ssh netcup "cat ~/$d/.deploy-manifest 2>/dev/null || true" > old-manifest
+            tar -C _site -czf - . | ssh netcup "tar --no-overwrite-dir -xzf - -C ~/$d"
+            LC_ALL=C sort -o old-manifest old-manifest
+            LC_ALL=C comm -23 old-manifest _site/.deploy-manifest | grep -v -e '^\.well-known/' -e '\.\.' -e '^/' > stale || true
+            if [ -s stale ]; then
+              echo "Veraltete Dateien entfernen:"; cat stale
+              ssh netcup "cd ~/$d && while IFS= read -r f; do rm -f -- \"\$f\"; done" < stale
+              ssh netcup "cd ~/$d && find assets images -mindepth 1 -type d -empty -delete 2>/dev/null || true"
+            fi
+            ssh netcup "ls -la ~/$d/"
           done

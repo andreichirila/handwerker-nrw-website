@@ -19,6 +19,6 @@ ErrorDocument 404 /404.html
 </IfModule>
 
 # Repository-/Hilfsdateien nicht ausliefern
-<FilesMatch "^(README\.md|\.git.*)$">
+<FilesMatch "^(README\.md|\.git.*|\.deploy-manifest)$">
   Require all denied
 </FilesMatch>
