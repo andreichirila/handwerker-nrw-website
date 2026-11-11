@@ -34,9 +34,6 @@ $defaults = [
     'limit_day'     => 60,        // Anfragen insgesamt pro Tag
 ];
 
-// Nur für Funktionstests ohne Versand (wird nach dem Test entfernt).
-const DRYRUN_KEY_SHA256 = 'cf489e262bf0dbe557c0822afec483fddc2b8295ce7c82aacd889e59bf1cf5d3';
-
 $configFile = dirname(__DIR__) . '/kontakt-config.php';
 $config = $defaults;
 if (is_file($configFile)) {
@@ -213,9 +210,6 @@ if ($method !== 'POST') {
     respond(405, 'error', 'Methode nicht erlaubt.');
 }
 
-$dryRun = isset($_SERVER['HTTP_X_KONTAKT_DRYRUN'])
-    && hash_equals(DRYRUN_KEY_SHA256, hash('sha256', (string) $_SERVER['HTTP_X_KONTAKT_DRYRUN']));
-
 // Herkunft prüfen (Origin bzw. Referer muss die eigene Website sein)
 $origin = $_SERVER['HTTP_ORIGIN'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
 $originHost = strtolower((string) parse_url($origin, PHP_URL_HOST));
@@ -225,7 +219,7 @@ if ($originHost === '' || !in_array($originHost, $config['allowed_hosts'], true)
 
 // Honeypot: für Menschen unsichtbares Feld muss leer bleiben -> Bots erhalten eine scheinbare Erfolgsmeldung
 if (trim((string) ($_POST['website'] ?? '')) !== '') {
-    respond(200, 'ok', 'Vielen Dank für Ihre Anfrage.', $dryRun ? ['dryrun' => true, 'honeypot' => true] : []);
+    respond(200, 'ok', 'Vielen Dank für Ihre Anfrage.');
 }
 
 // Zeit-Token prüfen
@@ -312,22 +306,6 @@ $headers = [
     'X-Mailer: tschudnow-kontakt',
 ];
 $encodedBody = rtrim(chunk_split(base64_encode(str_replace("\n", "\r\n", $body)), 76, "\r\n"));
-
-if ($dryRun) {
-    respond(200, 'ok', 'Testmodus: Anfrage gültig, es wurde nichts gesendet.', [
-        'dryrun'       => true,
-        'php'          => PHP_VERSION,
-        'transport'    => $config['transport'],
-        'mail_func'    => function_exists('mail'),
-        'sendmail'     => (string) ini_get('sendmail_path'),
-        'config_file'  => is_file($configFile),
-        'data_dir_ok'  => is_writable($dataDir) && strpos($dataDir, __DIR__) !== 0,
-        'smtp_ready'   => $config['smtp_user'] !== '' && $config['smtp_pass'] !== '',
-        'subject'      => $subject,
-        'reply_to'     => $email,
-        'headers'      => count($headers),
-    ]);
-}
 
 if ($config['transport'] === 'smtp' && $config['smtp_user'] !== '' && $config['smtp_pass'] !== '') {
     $data = 'To: <' . $to . ">\r\n" . 'Subject: ' . encode_header($subject) . "\r\n" . implode("\r\n", $headers) . "\r\n\r\n" . $encodedBody;
