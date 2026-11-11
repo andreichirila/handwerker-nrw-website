@@ -8,8 +8,8 @@
   <meta name="robots" content="noindex, follow">
   <meta name="theme-color" content="#1d3b53">
   <meta name="color-scheme" content="light">
-  <!-- Auf GitHub Pages (Projektseite) Basis-Pfad setzen, damit Styles/Links auch bei tief verschachtelten 404-Adressen funktionieren. Bei eigener Domain/anderem Repo-Namen anpassen. -->
-  <script>if (/\.github\.io$/.test(location.hostname)) { document.write('<base href="/handwerker-nrw-website/">'); }</script>
+  <!-- Basis-Pfad setzen, damit Styles/Links auch bei tief verschachtelten 404-Adressen funktionieren: GitHub Pages (Projektseite) unter /handwerker-nrw-website/, eigene Domain (netcup) im Wurzelverzeichnis. -->
+  <script>document.write('<base href="' + (/\.github\.io$/.test(location.hostname) ? '/handwerker-nrw-website/' : '/') + '">');</script>
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/css/style.css">
   <script>document.documentElement.classList.add('js');</script>

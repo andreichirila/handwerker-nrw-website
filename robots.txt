@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tschudnow-handwerk.de/sitemap.xml

@@ -1,0 +1,109 @@
+name: Deploy to netcup
+
+# Veröffentlicht die statische Seite per rsync über SSH auf das netcup Webhosting.
+# GitHub Pages (Vorschau) läuft unabhängig davon weiter.
+#
+# Benötigte Repository-Secrets:
+#   NETCUP_SSH_KEY       privater Deploy-Schlüssel (ed25519, ohne Passphrase)
+#   NETCUP_HOST          z. B. hosting254728.ae990.netcup.net
+#   NETCUP_USER          z. B. hosting254728
+#   NETCUP_PATH          Document Root, z. B. httpdocs/ (relativ zum Home-Verzeichnis)
+#   NETCUP_KNOWN_HOSTS   Ausgabe von ssh-keyscan für NETCUP_HOST
+# Repository-Variable:
+#   NETCUP_DEPLOY_ENABLED = true   aktiviert das automatische Deployment bei Push auf main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "deploy = Seite hochladen, check = nur Verbindung/Verzeichnisse prüfen"
+        type: choice
+        options: [deploy, check]
+        default: deploy
+
+concurrency:
+  group: deploy-netcup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || vars.NETCUP_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: netcup
+      url: https://tschudnow-handwerk.de/
+    env:
+      MODE: ${{ github.event.inputs.mode || 'deploy' }}
+      NETCUP_HOST: ${{ secrets.NETCUP_HOST }}
+      NETCUP_USER: ${{ secrets.NETCUP_USER }}
+      NETCUP_PATH: ${{ secrets.NETCUP_PATH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH
+        env:
+          NETCUP_SSH_KEY: ${{ secrets.NETCUP_SSH_KEY }}
+          NETCUP_KNOWN_HOSTS: ${{ secrets.NETCUP_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$NETCUP_HOST" && test -n "$NETCUP_USER" || { echo "::error::NETCUP_HOST/NETCUP_USER fehlen"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          if [ -n "$NETCUP_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$NETCUP_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          elif [ "$MODE" = "check" ]; then
+            echo "NETCUP_KNOWN_HOSTS fehlt - Host-Schlüssel (nur für check-Modus):"
+            ssh-keyscan -T 15 "$NETCUP_HOST" 2>/dev/null | tee ~/.ssh/known_hosts
+            ssh-keygen -lf ~/.ssh/known_hosts
+          else
+            echo "::error::NETCUP_KNOWN_HOSTS fehlt"; exit 1
+          fi
+          chmod 600 ~/.ssh/known_hosts
+          if [ -n "$NETCUP_SSH_KEY" ]; then
+            printf '%s\n' "$NETCUP_SSH_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+          fi
+          cat > ~/.ssh/config <<CFG
+          Host netcup
+            HostName $NETCUP_HOST
+            User $NETCUP_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            ConnectTimeout 20
+          CFG
+
+      - name: Check connection
+        run: |
+          set -euo pipefail
+          ssh netcup 'echo "Login OK als $(whoami)"; echo "Home: $HOME"; ls -la ~; echo "--- Document Root:"; ls -la ~/'"${NETCUP_PATH:-httpdocs/}"' 2>&1 | head -40; command -v rsync'
+
+      - name: Deploy (rsync)
+        if: env.MODE == 'deploy'
+        run: |
+          set -euo pipefail
+          test -n "$NETCUP_PATH" || { echo "::error::NETCUP_PATH fehlt"; exit 1; }
+          case "$NETCUP_PATH" in /*|*..*) echo "::error::NETCUP_PATH muss relativ zum Home-Verzeichnis sein"; exit 1;; esac
+          # Nur die Dateien der Website übertragen. --delete entfernt nur veraltete Website-Dateien
+          # innerhalb des Document Roots; alles andere (z. B. .well-known für Let's Encrypt) bleibt geschützt.
+          rsync -az --delete --itemize-changes \
+            --filter='P .well-known/' \
+            --include='/index.html' \
+            --include='/impressum.html' \
+            --include='/datenschutz.html' \
+            --include='/404.html' \
+            --include='/.htaccess' \
+            --include='/robots.txt' \
+            --include='/sitemap.xml' \
+            --include='/assets/***' \
+            --exclude='/images/README.md' \
+            --exclude='.gitkeep' \
+            --include='/images/***' \
+            --exclude='*' \
+            ./ "netcup:${NETCUP_PATH%/}/"
